@@ -1,0 +1,46 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2014 DNAnexus, Inc.
+#
+# This file is part of dx-toolkit (DNAnexus platform client libraries).
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+#   use this file except in compliance with the License. You may obtain a copy
+#   of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#   License for the specific language governing permissions and limitations
+#   under the License.
+
+import os
+import sys
+import json
+import argparse
+import dxpy
+from dxpy.utils import file_load_utils
+
+parser = argparse.ArgumentParser(description='Streams standard input to a file in the workspace.')
+parser.add_argument('key', help='Key from input specification')
+parser.add_argument('filename', help='file name in the job workspace')
+args = parser.parse_args()
+
+file_obj = sys.stdin.buffer
+filename = os.path.basename(args.filename)
+dirname = os.path.dirname(args.filename)
+trg_folder = ("/" if dirname is None else dirname)
+
+# TODO: make sure the key is for a file (or file-array)
+
+try:
+    dxfile = dxpy.upload_local_file(file=file_obj,
+									name=filename
+									folder=trg_folder, parents=True)
+
+	# TODO: add the file to the output-JSON
+except:
+    file_load_utils.report_error_and_exit("Error streaming file {}".format(dxfile_id))
+

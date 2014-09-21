@@ -243,3 +243,20 @@ def get_job_input_filenames():
             else:
                 add_file(input_name, None, value)
         return dirs, files
+
+def report_error_and_exit(message):
+    ''' Report an error, since this is called from a bash script, we
+        can't simply raise an exception. Instead, we write the error to
+        a standard JSON file.
+
+        TODO: refactor, shared code with dx-jobutil-report-error
+    '''
+    error_hash = {
+        "error": {
+            "type": "string",
+            "message": message
+        }
+    }
+    with open(os.path.expanduser(os.path.join('~', 'job_error.json')), 'w') as error_file:
+        error_file.write(json.dumps(error_hash, indent=4) + '\n')
+    sys.exit(1)

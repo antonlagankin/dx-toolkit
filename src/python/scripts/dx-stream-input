@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2014 DNAnexus, Inc.
+#
+# This file is part of dx-toolkit (DNAnexus platform client libraries).
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+#   use this file except in compliance with the License. You may obtain a copy
+#   of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#   License for the specific language governing permissions and limitations
+#   under the License.
+
+import os
+import sys
+import json
+import argparse
+import dxpy
+from dxpy.utils import file_load_utils
+
+parser = argparse.ArgumentParser(description='Streams a job input to standard output, assuming it is a file.')
+parser.add_argument('key', help='Key from input specification')
+args = parser.parse_args()
+
+def cat(dxfile_id, project_id):
+    ''' print to stdout a file from the project space
+
+    TODO: refactor to share code with dx.py
+    '''
+    try:
+        dxfile = dxpy.DXFile(dxfile_id, project=project_id)
+        while True:
+            chunk = dxfile.read(1024*1024)
+            if len(chunk) == 0:
+                break
+            sys.stdout.buffer.write(chunk)
+    except:
+        file_load_utils.report_error_and_exit("Error streaming file {}".format(dxfile_id))
+
+def get_project_id():
+    proj = dxpy.WORKSPACE_ID
+    if proj is None:
+        file_load_utils.report_error_and_exit(
+            'Unable to find project to run the app in. ' +
+            'Please run "dx select" to set the working project')
+    return proj
+
+proj_id = get_project_id()
+_, inputs = file_load_utils.get_job_input_filenames()
+
+if args.key not in inputs:
+    file_load_utils.report_error_and_exit(
+        'Unable to find key {} in the job input'.format(args.key))
+
+# TODO: make sure the key type is "file"
+
+src_file_id = inputs[args.key]['src_file_id']
+cat(src_file_id, proj_id)
+
+
+
+

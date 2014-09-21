@@ -89,24 +89,6 @@ args = parser.parse_args()
 parser.parse_args()
 max_num_parallel_uploads = 8
 
-def report_error_and_exit(message):
-    ''' Report an error, since this is called from a bash script, we
-        can't simply raise an exception. Instead, we write the error to
-        a standard JSON file.
-
-        TODO: refactor, shared code with dx-jobutil-report-error
-    '''
-    error_hash = {
-        "error": {
-            "type": "string",
-            "message": message
-        }
-    }
-    with open(os.path.expanduser(os.path.join('~', 'job_error.json')), 'w') as error_file:
-        error_file.write(json.dumps(error_hash, indent=4) + '\n')
-    sys.exit(1)
-
-
 def get_output_spec():
     ''' Extract the outputSpec, if it exists
     '''
@@ -215,7 +197,8 @@ def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
         num_files = len(s_rec['files'])
         if class_ == 'file':
             if num_files != 1:
-                report_error_and_exit("key {} is of class {} but there are {} files".format(key, class_, num_files))
+                file_load_utils.report_error_and_exit(
+                    "key {} is of class {} but there are {} files".format(key, class_, num_files))
         else:
             # array of files, there could be any number of files in the subdirectory (including zero)
             pass
