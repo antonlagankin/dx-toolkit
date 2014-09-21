@@ -31,7 +31,9 @@ args = parser.parse_args()
 file_obj = sys.stdin.buffer
 filename = os.path.basename(args.filename)
 dirname = os.path.dirname(args.filename)
-trg_folder = ("/" if dirname is None else dirname)
+trg_folder = ("/" if dirname == '' else dirname)
+if trg_folder[0] != "/":
+	trg_folder += "/"
 
 # TODO: make sure the key is for a file (or file-array)
 
