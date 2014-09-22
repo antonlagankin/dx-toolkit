@@ -33,16 +33,15 @@ filename = os.path.basename(args.filename)
 dirname = os.path.dirname(args.filename)
 trg_folder = ("/" if dirname == '' else dirname)
 if trg_folder[0] != "/":
-	trg_folder += "/"
+    trg_folder += "/"
 
 # TODO: make sure the key is for a file (or file-array)
-
 try:
     dxfile = dxpy.upload_local_file(file=file_obj,
-									name=filename
-									folder=trg_folder, parents=True)
+                                    name=filename
+                                    folder=trg_folder, parents=True)
 
-	# TODO: add the file to the output-JSON
+    # TODO: add the file to the output-JSON
 except:
     file_load_utils.report_error_and_exit("Error streaming file {}".format(dxfile_id))
 

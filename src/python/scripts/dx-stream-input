@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# coding: utf-8
 #
 # Copyright (C) 2014 DNAnexus, Inc.
 #
@@ -16,31 +17,44 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
+import pprint
+import traceback
+
 import os
 import sys
 import json
 import argparse
 import dxpy
+from dxpy.compat import (USING_PYTHON2, basestring, str, input, wrap_stdio_in_codecs, decode_command_line_args,
+                         unwrap_stream)
 from dxpy.utils import file_load_utils
 
 parser = argparse.ArgumentParser(description='Streams a job input to standard output, assuming it is a file.')
 parser.add_argument('key', help='Key from input specification')
 args = parser.parse_args()
 
+wrap_stdio_in_codecs()
+
 def cat(dxfile_id, project_id):
     ''' print to stdout a file from the project space
 
-    TODO: refactor to share code with dx.py
+    TODO: refactor to share code with dx.py. We could move this
+    to the file_load_utils.
     '''
     try:
+        with open("log2.txt", "w") as log_fh:
+            log_fh.write("{} {}\n".format(dxfile_id, project_id))
         dxfile = dxpy.DXFile(dxfile_id, project=project_id)
         while True:
             chunk = dxfile.read(1024*1024)
+            with open("log2.txt", "w") as log_fh:
+                log_fh.write("{} {}\n".format(dxfile_id, project_id))
             if len(chunk) == 0:
                 break
             sys.stdout.buffer.write(chunk)
     except:
-        file_load_utils.report_error_and_exit("Error streaming file {}".format(dxfile_id))
+        tb = traceback.format_exc()
+        file_load_utils.report_error_and_exit("Error streaming file {} exn={}".format(dxfile_id, tb))
 
 def get_project_id():
     proj = dxpy.WORKSPACE_ID
@@ -50,6 +64,37 @@ def get_project_id():
             'Please run "dx select" to set the working project')
     return proj
 
+def get_input_spec():
+    ''' Extract the inputSpec, if it exists
+    '''
+    input_spec = None
+    if 'DX_JOB_ID' in os.environ:
+        # works only in the cloud
+        job_desc = dxpy.describe(dxpy.JOB_ID)
+        if job_desc["function"] == "main":
+            # The input spec does not exist for subjobs
+            desc = dxpy.describe(job_desc.get("app", job_desc.get("applet")))
+            if "inputSpec" in desc:
+                input_spec = desc["inputSpec"]
+    elif 'DX_TEST_DXAPP_JSON' in os.environ:
+        # works only locally
+        path_to_dxapp_json = os.environ['DX_TEST_DXAPP_JSON']
+        with open(path_to_dxapp_json, 'r') as fd:
+            dxapp_json = json.load(fd)
+            input_spec = dxapp_json.get('inputSpec')
+
+    # convert to a dictionary. Each entry in the input spec
+    # has {name, class} attributes.
+    if input_spec == None:
+        return {}
+
+    # for each field name, we want to know its class
+    fields = {}
+    for spec in input_spec:
+        iname = spec['name']
+        fields[iname] = spec['class']
+    return fields
+
 proj_id = get_project_id()
 _, inputs = file_load_utils.get_job_input_filenames()
 
@@ -57,11 +102,20 @@ if args.key not in inputs:
     file_load_utils.report_error_and_exit(
         'Unable to find key {} in the job input'.format(args.key))
 
-# TODO: make sure the key type is "file"
+# make sure the key type is "file"
+input_spec = get_input_spec()
+if input_spec is not None:
+    if args.key not in input_spec:
+        file_load_utils.report_error_and_exit("Key {} does not exist in the input specification, make sure dxapp.json describes this key"
+                                              .format(args.key))
+    _class = input_spec[args.key]
+    if _class != "file":
+        file_load_utils.report_error_and_exit("dx-stream-input only supports file inputs, key {} is of type {}"
+                                              .format(args.key, _class))
 
-src_file_id = inputs[args.key]['src_file_id']
+desc = inputs[args.key]
+if len(desc) == 0:
+    file_load_utils.report_error_and_exit("Key {} has no inputs".format(args.key))
+
+src_file_id = desc[0]['src_file_id']
 cat(src_file_id, proj_id)
-
-
-
-

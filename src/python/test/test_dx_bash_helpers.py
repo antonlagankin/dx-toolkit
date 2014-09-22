@@ -60,6 +60,8 @@ def build_app_with_bash_helpers(app_dir, project_id):
             os.makedirs(resources_bindir)
         shutil.copy(os.path.join(LOCAL_SCRIPTS, 'dx-download-all-inputs'), resources_bindir)
         shutil.copy(os.path.join(LOCAL_SCRIPTS, 'dx-upload-all-outputs'), resources_bindir)
+        shutil.copy(os.path.join(LOCAL_SCRIPTS, 'dx-stream-input'), resources_bindir)
+        shutil.copy(os.path.join(LOCAL_SCRIPTS, 'dx-stream-ouput'), resources_bindir)
 
         # Now copy any libraries we depend on. This is tricky to get
         # right in general (because we will end up with some subset of

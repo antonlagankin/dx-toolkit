@@ -375,6 +375,11 @@ class TestDXBashHelpers(DXTestCase):
         args.extend(arg_list)
         check_output(args)
 
+    def test_stream(self):
+        # Make a couple files for testing
+        dxpy.upload_string("1234", wait_on_close=True, name="A.txt")
+        self.run_test_app_locally('stream_utils', ['-iseq1=A.txt'])
+
     def test_basic(self):
         # Make a couple files for testing
         print("testing upload/download helpers")

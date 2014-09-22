@@ -1,0 +1,14 @@
+{ "name": "streaming test",
+  "title": "streaming test",
+  "summary" : "test app for the dx streaming utilities",
+  "runSpec": {
+    "file": "run.sh",
+    "interpreter": "bash"
+  },
+  "inputSpec": [
+    {"name": "seq1", "class": "file"},
+  ],
+  "outputSpec": [
+    {"name": "foo",  "class": "file"}
+  ]
+}
