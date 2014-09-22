@@ -17,7 +17,6 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-import pprint
 import traceback
 
 import os
@@ -25,8 +24,7 @@ import sys
 import json
 import argparse
 import dxpy
-from dxpy.compat import (USING_PYTHON2, basestring, str, input, wrap_stdio_in_codecs, decode_command_line_args,
-                         unwrap_stream)
+from dxpy.compat import (USING_PYTHON2, basestring, str, input, wrap_stdio_in_codecs)
 from dxpy.utils import file_load_utils
 
 parser = argparse.ArgumentParser(description='Streams a job input to standard output, assuming it is a file.')
@@ -42,13 +40,9 @@ def cat(dxfile_id, project_id):
     to the file_load_utils.
     '''
     try:
-        with open("log2.txt", "w") as log_fh:
-            log_fh.write("{} {}\n".format(dxfile_id, project_id))
         dxfile = dxpy.DXFile(dxfile_id, project=project_id)
         while True:
             chunk = dxfile.read(1024*1024)
-            with open("log2.txt", "w") as log_fh:
-                log_fh.write("{} {}\n".format(dxfile_id, project_id))
             if len(chunk) == 0:
                 break
             sys.stdout.buffer.write(chunk)
@@ -64,37 +58,6 @@ def get_project_id():
             'Please run "dx select" to set the working project')
     return proj
 
-def get_input_spec():
-    ''' Extract the inputSpec, if it exists
-    '''
-    input_spec = None
-    if 'DX_JOB_ID' in os.environ:
-        # works only in the cloud
-        job_desc = dxpy.describe(dxpy.JOB_ID)
-        if job_desc["function"] == "main":
-            # The input spec does not exist for subjobs
-            desc = dxpy.describe(job_desc.get("app", job_desc.get("applet")))
-            if "inputSpec" in desc:
-                input_spec = desc["inputSpec"]
-    elif 'DX_TEST_DXAPP_JSON' in os.environ:
-        # works only locally
-        path_to_dxapp_json = os.environ['DX_TEST_DXAPP_JSON']
-        with open(path_to_dxapp_json, 'r') as fd:
-            dxapp_json = json.load(fd)
-            input_spec = dxapp_json.get('inputSpec')
-
-    # convert to a dictionary. Each entry in the input spec
-    # has {name, class} attributes.
-    if input_spec == None:
-        return {}
-
-    # for each field name, we want to know its class
-    fields = {}
-    for spec in input_spec:
-        iname = spec['name']
-        fields[iname] = spec['class']
-    return fields
-
 proj_id = get_project_id()
 _, inputs = file_load_utils.get_job_input_filenames()
 
@@ -103,15 +66,17 @@ if args.key not in inputs:
         'Unable to find key {} in the job input'.format(args.key))
 
 # make sure the key type is "file"
-input_spec = get_input_spec()
+input_spec = file_load_utils.get_input_spec()
 if input_spec is not None:
     if args.key not in input_spec:
-        file_load_utils.report_error_and_exit("Key {} does not exist in the input specification, make sure dxapp.json describes this key"
-                                              .format(args.key))
-    _class = input_spec[args.key]
+        file_load_utils.report_error_and_exit(
+            "Key {} does not exist in the input specification, make sure dxapp.json describes this key"
+            .format(args.key))
+    _class = input_spec[args.key]['class']
     if _class != "file":
-        file_load_utils.report_error_and_exit("dx-stream-input only supports file inputs, key {} is of type {}"
-                                              .format(args.key, _class))
+        file_load_utils.report_error_and_exit(
+            "dx-stream-input only supports file inputs, key {} is of type {}"
+            .format(args.key, _class))
 
 desc = inputs[args.key]
 if len(desc) == 0:

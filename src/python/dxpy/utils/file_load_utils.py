@@ -244,6 +244,127 @@ def get_job_input_filenames():
                 add_file(input_name, None, value)
         return dirs, files
 
+
+def get_input_spec():
+    ''' Extract the inputSpec, if it exists
+    '''
+    input_spec = None
+    if 'DX_JOB_ID' in os.environ:
+        # works only in the cloud
+        job_desc = dxpy.describe(dxpy.JOB_ID)
+        if job_desc["function"] == "main":
+            # The input spec does not exist for subjobs
+            desc = dxpy.describe(job_desc.get("app", job_desc.get("applet")))
+            if "inputSpec" in desc:
+                input_spec = desc["inputSpec"]
+    elif 'DX_TEST_DXAPP_JSON' in os.environ:
+        # works only locally
+        path_to_dxapp_json = os.environ['DX_TEST_DXAPP_JSON']
+        with open(path_to_dxapp_json, 'r') as fd:
+            dxapp_json = json.load(fd)
+            input_spec = dxapp_json.get('inputSpec')
+
+    # convert to a dictionary. Each entry in the input spec
+    # has {name, class} attributes.
+    if input_spec == None:
+        return None
+
+    # for each field name, we want to know its class
+    fields = {}
+    for spec in input_spec:
+        iname = spec['name']
+        fields[iname] = {'class': spec['class']}
+        if 'optional' in spec:
+            fields[iname]['optional'] = spec['optional']
+        else:
+            fields[iname]['optional'] = False
+    return fields
+
+
+def get_output_spec():
+    ''' Extract the outputSpec, if it exists
+    '''
+    output_spec = None
+    if 'DX_JOB_ID' in os.environ:
+        # works in the cloud, not locally
+        # print("found the job id");
+        job_desc = dxpy.describe(dxpy.JOB_ID)
+        if job_desc["function"] == "main":
+            # The output spec does not apply for subjobs
+            desc = dxpy.describe(job_desc.get("app", job_desc.get("applet")))
+            if "outputSpec" in desc:
+                output_spec = desc["outputSpec"]
+    elif 'DX_TEST_DXAPP_JSON' in os.environ:
+        # works only locally
+        path_to_dxapp_json = os.environ['DX_TEST_DXAPP_JSON']
+        with open(path_to_dxapp_json, 'r') as fd:
+            dxapp_json = json.load(fd)
+            output_spec = dxapp_json.get('outputSpec')
+
+    # convert to a dictionary. Each entry in the output spec
+    # has {name, class} attributes.
+    if output_spec == None:
+        return None
+
+    # for each field name, we want to know its class, and if it
+    # is optional
+    subdir_recs = {}
+    for spec in output_spec:
+        oname = spec['name']
+        subdir_recs[oname] = {'class': spec['class']}
+        if 'optional' in spec:
+            subdir_recs[oname]['optional'] = spec['optional']
+        else:
+            subdir_recs[oname]['optional'] = False
+    return subdir_recs
+
+
+def update_output_json(subdir_recs):
+    ''' update the output json file.'''
+
+    # Load existing file, if it exists
+    output_json = {}
+    output_file = get_output_json_file()
+    if os.path.exists(output_file):
+        with open(output_file, 'r') as fh:
+            output_json = json.load(fh)
+
+    # Add one entry to the json output file
+    def add_rec_to_json(key, class_, dxlinks):
+        if not key in output_json:
+            if class_ == 'array:file':
+                ## array type
+                output_json[key] = dxlinks
+            elif not len(dxlinks) == 1:
+                output_json[key] = dxlinks
+            else:
+                ## singleton
+                output_json[key] = dxlinks[0]
+        else:
+            if (class_ == 'array:file' and
+                isinstance(output_json[key], list)):
+                output_json[key].extend(dxlinks)
+            elif class_ == 'file':
+                output_json[key] = dxlinks[0]
+            else:
+                report_error_and_exit("Key {} was found in output but does not match its type".format(key))
+
+    # Add all the entries
+    for key in subdir_recs:
+        subdir_desc = subdir_recs[key]
+        dxlinks = subdir_desc['dx_links']
+        if len(dxlinks) == 0:
+            continue
+        class_ = None
+        if 'class' in subdir_desc:
+            class_ = subdir_desc['class']
+        add_rec_to_json(key, class_, dxlinks)
+
+    # write it back out
+    with open(output_file, 'w') as fh:
+        json.dump(output_json, fh, indent=4)
+
+
 def report_error_and_exit(message):
     ''' Report an error, since this is called from a bash script, we
         can't simply raise an exception. Instead, we write the error to

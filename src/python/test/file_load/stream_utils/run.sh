@@ -12,9 +12,10 @@ main() {
     fi
 
     mkdir -p out/foo
-    echo "ABCD" > out/foo/A.txt
+    echo "ABCD" > out/foo/A1.txt
 
     dx-upload-all-outputs
 
     # use streaming to compare the two upload options
+    dx-stream-output foo "A2.txt" < out/foo/A1.txt
 }

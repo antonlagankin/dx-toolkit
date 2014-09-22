@@ -89,44 +89,6 @@ args = parser.parse_args()
 parser.parse_args()
 max_num_parallel_uploads = 8
 
-def get_output_spec():
-    ''' Extract the outputSpec, if it exists
-    '''
-    output_spec = None
-    if 'DX_JOB_ID' in os.environ:
-        # works in the cloud, not locally
-        # print("found the job id");
-        job_desc = dxpy.describe(dxpy.JOB_ID)
-        if job_desc["function"] == "main":
-            # The output spec does not apply for subjobs
-            desc = dxpy.describe(job_desc.get("app", job_desc.get("applet")))
-            if "outputSpec" in desc:
-                output_spec = desc["outputSpec"]
-    elif 'DX_TEST_DXAPP_JSON' in os.environ:
-        # works only locally
-        path_to_dxapp_json = os.environ['DX_TEST_DXAPP_JSON']
-        with open(path_to_dxapp_json, 'r') as fd:
-            dxapp_json = json.load(fd)
-            output_spec = dxapp_json.get('outputSpec')
-
-    # convert to a dictionary. Each entry in the output spec
-    # has {name, class} attributes.
-    if output_spec == None:
-        return {}
-
-    # for each field name, we want to know its class, and if it
-    # is optional
-    subdir_recs = {}
-    for spec in output_spec:
-        name = spec['name']
-        subdir_recs[name] = {'class': spec['class']}
-        if 'optional' in spec:
-            subdir_recs[name]['optional'] = spec['optional']
-        else:
-            subdir_recs[name]['optional'] = False
-    return subdir_recs
-
-
 def traverse_output_subdir(odir, subdir):
     '''
     Traverse an output directory, and return all the files in
@@ -260,48 +222,6 @@ def parallel_file_upload(to_upload):
             else:
                 pass
 
-def update_output_json(subdir_recs):
-    ''' update the output json file.'''
-
-    # Load existing file, if it exists
-    output_json = {}
-    output_file = file_load_utils.get_output_json_file()
-    if os.path.exists(output_file):
-        with open(output_file, 'r') as fh:
-            output_json = json.load(fh)
-
-    # Add one entry to the json output file
-    def add_rec_to_json(key, class_, dxlinks):
-        if not key in output_json:
-            if class_ == 'array:file':
-                ## array type
-                output_json[key] = dxlinks
-            elif not len(dxlinks) == 1:
-                output_json[key] = dxlinks
-            else:
-                ## singleton
-                output_json[key] = dxlinks[0]
-        else:
-            if isinstance(output_json[key], list):
-                output_json[key].extend(dxlinks)
-            else:
-                report_error_and_exit("Key {} was found in output but is not an array".format(key))
-
-    # Add all the entries
-    for key in subdir_recs:
-        subdir_desc = subdir_recs[key]
-        dxlinks = subdir_desc['dx_links']
-        if len(dxlinks) == 0:
-            continue
-        class_ = None
-        if 'class' in subdir_desc:
-            class_ = subdir_desc['class']
-        add_rec_to_json(key, class_, dxlinks)
-
-    # write it back out
-    with open(output_file, 'w') as fh:
-        json.dump(output_json, fh, indent=4)
-
 
 ## filter from a dictionary a list of matching keys
 def filter_dict(dict, excl_keys):
@@ -312,7 +232,9 @@ def filter_dict(dict, excl_keys):
     return sub_dict
 
 ## entry point
-output_spec = get_output_spec()
+output_spec = file_load_utils.get_output_spec()
+if output_spec is None:
+    output_spec = {}
 subdir_recs = analyze_output_dir()
 
 # remove entries the user asked to exclude
@@ -344,4 +266,4 @@ for entry in to_upload:
 
 if args.clearJSON:
     file_load_utils.rm_output_json_file()
-update_output_json(subdir_recs)
+file_load_utils.update_output_json(subdir_recs)

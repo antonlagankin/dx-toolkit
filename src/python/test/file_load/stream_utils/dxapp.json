@@ -6,7 +6,7 @@
     "interpreter": "bash"
   },
   "inputSpec": [
-    {"name": "seq1", "class": "file"},
+    {"name": "seq1", "class": "file"}
   ],
   "outputSpec": [
     {"name": "foo",  "class": "file"}

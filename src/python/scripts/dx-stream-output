@@ -21,6 +21,7 @@ import sys
 import json
 import argparse
 import dxpy
+from dxpy.compat import (USING_PYTHON2, basestring, str, input, wrap_stdio_in_codecs)
 from dxpy.utils import file_load_utils
 
 parser = argparse.ArgumentParser(description='Streams standard input to a file in the workspace.')
@@ -28,20 +29,49 @@ parser.add_argument('key', help='Key from input specification')
 parser.add_argument('filename', help='file name in the job workspace')
 args = parser.parse_args()
 
-file_obj = sys.stdin.buffer
-filename = os.path.basename(args.filename)
-dirname = os.path.dirname(args.filename)
-trg_folder = ("/" if dirname == '' else dirname)
-if trg_folder[0] != "/":
-    trg_folder += "/"
+wrap_stdio_in_codecs()
 
-# TODO: make sure the key is for a file (or file-array)
-try:
-    dxfile = dxpy.upload_local_file(file=file_obj,
-                                    name=filename
-                                    folder=trg_folder, parents=True)
+def stream_out(path):
+    '''stream stdin to a file in the workspace.
 
-    # TODO: add the file to the output-JSON
-except:
-    file_load_utils.report_error_and_exit("Error streaming file {}".format(dxfile_id))
+    :param data: full path of target file in the workspace
+    :type data: string
+    :returns: Remote file handler
+    :rtype: :class:`~dxpy.bindings.dxfile.DXFile`
+    '''
+    basename = os.path.basename(path)
+    dirname = os.path.dirname(path)
+    trg_folder = ("/" if dirname == '' else dirname)
+    if trg_folder[0] != "/":
+        trg_folder += "/"
 
+    try:
+        dxfile = dxpy.upload_local_file(file=sys.stdin.buffer,
+                                        name=basename,
+                                        folder=trg_folder,
+                                        parents=True)
+        return dxfile
+    except:
+        file_load_utils.report_error_and_exit("Error streaming file {}".format(dxfile_id))
+
+
+# make sure the key has file type
+output_spec = file_load_utils.get_output_spec()
+if output_spec is None:
+        file_load_utils.report_error_and_exit(
+            'This app does not have an output specification, please add it to dxapp.json')
+if args.key not in output_spec:
+    file_load_utils.report_error_and_exit(
+        'Unable to find key {} in the job output specification, make sure dxapp.json includes it'.format(args.key))
+if output_spec[args.key]['class'] != 'file':
+    file_load_utils.report_error_and_exit(
+        'Key {} must have type file, it has type {} instead'.format(args.key, output_spec[args.key]['class']))
+
+dx_file = stream_out(args.filename)
+dx_link = dxpy.dxlink(dx_file.get_id(),
+                      project_id= dx_file.get_proj_id())
+
+# TODO: add a lock around the json output file
+subdir_recs = {}
+subdir_recs[args.key] = {'dx_links': [dx_link], 'class': 'file'}
+file_load_utils.update_output_json(subdir_recs)
