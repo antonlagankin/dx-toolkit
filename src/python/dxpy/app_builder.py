@@ -34,7 +34,7 @@ the effective destination project.
 
 '''
 
-from __future__ import (print_function, unicode_literals)
+from __future__ import print_function, unicode_literals, division, absolute_import
 
 import os, sys, json, subprocess, tempfile, multiprocessing
 import datetime
@@ -250,7 +250,7 @@ def upload_applet(src_dir, uploaded_resources, check_name_collisions=True, overw
 
                 proj.move(objects=[result['id']], destination=archive_folder)
                 archived_applet = dxpy.DXApplet(result['id'], project=dest_project)
-                now = datetime.datetime.fromtimestamp(archived_applet.created/1000).ctime()
+                now = datetime.datetime.fromtimestamp(archived_applet.created // 1000).ctime()
                 new_name = archived_applet.name + " ({d})".format(d=now)
                 archived_applet.rename(new_name)
                 logger.info("Archived applet %s to %s:\"%s/%s\"" % (result['id'], dest_project, archive_folder, new_name))

@@ -18,7 +18,7 @@
 Exceptions for the :mod:`dxpy` package.
 '''
 
-from __future__ import (print_function, unicode_literals)
+from __future__ import print_function, unicode_literals, division, absolute_import
 
 import os, sys, json, traceback, errno
 import requests
