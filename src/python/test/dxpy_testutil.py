@@ -150,7 +150,7 @@ restored when the block exits.
 
 class TestCase(unittest.TestCase):
     if USING_PYTHON2:
-        self.assertNotRegex = self.assertNotRegexpMatches
+        assertNotRegex = assertNotRegexpMatches
 
 class DXTestCase(TestCase):
     def setUp(self):
