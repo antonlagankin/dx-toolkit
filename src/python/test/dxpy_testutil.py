@@ -148,11 +148,7 @@ restored when the block exits.
         else:
             os.environ['DX_PROJECT_CONTEXT_ID'] = current_project_env_var
 
-class TestCase(unittest.TestCase):
-    if USING_PYTHON2:
-        assertNotRegex = assertNotRegexpMatches
-
-class DXTestCase(TestCase):
+class DXTestCase(unittest.TestCase):
     def setUp(self):
         proj_name = u"dxclient_test_pröject"
         self.project = dxpy.api.project_new({"name": proj_name})['id']

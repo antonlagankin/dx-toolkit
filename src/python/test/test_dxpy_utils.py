@@ -25,11 +25,10 @@ from dxpy.utils import (describe, exec_utils, genomic_utils, response_iterator, 
                         normalize_timedelta)
 from dxpy.utils.exec_utils import DXExecDependencyInstaller
 from dxpy.compat import USING_PYTHON2
-from dxpy_testutil import TestCase
 
 # TODO: unit tests for dxpy.utils.get_field_from_jbor, get_job_from_jbor, is_job_ref
 
-class TestDescribe(TestCase):
+class TestDescribe(unittest.TestCase):
     def test_is_job_ref(self):
         # Positive results
         jobref = {"job": "job-B55ZF5kZKQGz1Xxyb5FQ0003", "field": "number"}
@@ -47,7 +46,7 @@ class TestDescribe(TestCase):
         jobref = {"$dnanexus_link": "job-B55ZF5kZKQGz1Xxyb5FQ0003"}
         self.assertFalse(describe.is_job_ref(jobref))
 
-class TestErrorSanitizing(TestCase):
+class TestErrorSanitizing(unittest.TestCase):
     def test_error_sanitizing(self):
         # ASCII str
         self.assertEqual(exec_utils._safe_unicode(ValueError("foo")), "foo")
@@ -67,7 +66,7 @@ class TestErrorSanitizing(TestCase):
         self.assertEqual(exec_utils._format_exception_message(ValueError("foo")), "ValueError: foo")
         self.assertEqual(exec_utils._format_exception_message(AppError("foo")), "foo")
 
-class TestGenomicUtils(TestCase):
+class TestGenomicUtils(unittest.TestCase):
     def test_reverse_complement(self):
         self.assertEqual(b"TTTTAAACCG", genomic_utils.reverse_complement(b"CGGTTTAAAA"))
         self.assertEqual(b"TTTTAAACCG", genomic_utils.reverse_complement("CGGTTTAAAA"))
@@ -78,7 +77,7 @@ class TestGenomicUtils(TestCase):
         with self.assertRaises(ValueError):
             genomic_utils.reverse_complement("oops")
 
-class TestResponseIterator(TestCase):
+class TestResponseIterator(unittest.TestCase):
     def test_basic_iteration(self):
         def task(i, sleep_for=1):
             print("Task", i, "sleeping for", sleep_for)
@@ -105,7 +104,7 @@ class TestResponseIterator(TestCase):
         for i, res in enumerate(response_iterator(tasks2(), get_futures_threadpool(5), num_retries=2, retry_after=0.1)):
             self.assertEqual(i, res)
 
-class TestDXUtils(TestCase):
+class TestDXUtils(unittest.TestCase):
     def test_dxjsonencoder(self):
         f = DXFile("file-" + "x"*24, project="project-" + "y"*24)
         r = DXRecord("record-" + "r"*24, project="project-" + "y"*24)
@@ -125,7 +124,7 @@ class TestEDI(DXExecDependencyInstaller):
     def log(self, message, **kwargs):
         self.message_log.append(message)
 
-class TestDXExecDependsUtils(TestCase):
+class TestDXExecDependsUtils(unittest.TestCase):
     def test_dx_execdepends_installer(self):
         def get_edi(run_spec, job_desc=None):
             return TestEDI(executable_desc={"runSpec": run_spec}, job_desc=job_desc if job_desc else {})
@@ -191,7 +190,7 @@ class TestDXExecDependsUtils(TestCase):
         edi = get_edi({"execDepends": [{"name": "w00t", "stages": ["foo", "bar"]},
                                        {"name": "f1", "id": {"$dnanexus_link": "file-123"}, "stages": ["xyzzt"]}]})
         edi.install()
-        self.assertNotRegex("\n".join(edi.command_log), "w00t")
+        self.assertNotIn("w00t", "\n".join(edi.command_log))
         for name in "w00t", "f1":
             assert_log_contains(edi,
                                 "Skipping dependency {} because it is inactive in stage \(function\) main".format(name))
@@ -201,7 +200,7 @@ class TestDXExecDependsUtils(TestCase):
         edi.install()
         assert_cmd_ran(edi, "apt-get install --yes --no-install-recommends git")
 
-class TestTimeUtils(TestCase):
+class TestTimeUtils(unittest.TestCase):
     def test_normalize_timedelta(self):
         for i, o in (("-15", -15000),
                      ("15", 15000),
