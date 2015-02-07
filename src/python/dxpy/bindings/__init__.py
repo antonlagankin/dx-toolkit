@@ -20,13 +20,14 @@ object handlers, and its subclass :class:`DXDataObject` is the abstract
 base class for all remote data object handlers.
 """
 
-from __future__ import (print_function, unicode_literals)
+from __future__ import print_function, unicode_literals, division, absolute_import
 
 import time, copy, re
 
 import dxpy.api
 from ..exceptions import (DXError, DXAPIError, DXFileError, DXGTableError, DXSearchError, DXAppletError,
                           DXJobFailureError, AppError, AppInternalError, DXCLIError)
+from ..compat import str, bytes
 
 def verify_string_dxid(dxid, expected_classes):
     '''
@@ -35,11 +36,11 @@ def verify_string_dxid(dxid, expected_classes):
     :type expected_classes: string or list of strings
     :raises: :exc:`~dxpy.exceptions.DXError` if *dxid* is not a string or is not a valid DNAnexus ID of the expected class
     '''
-    if isinstance(expected_classes, basestring):
+    if isinstance(expected_classes, (str, bytes)):
         expected_classes = [expected_classes]
     if not isinstance(expected_classes, list) or len(expected_classes) == 0:
         raise DXError('verify_string_dxid: expected_classes should be a string or list of strings')
-    if not (isinstance(dxid, basestring) and
+    if not (isinstance(dxid, (str, bytes)) and
             re.match('^(' + '|'.join(expected_classes) + ')-[0-9a-zA-Z]{24}$', dxid)):
         if len(expected_classes) == 1:
             str_expected_classes = expected_classes[0]

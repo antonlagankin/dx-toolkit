@@ -221,7 +221,7 @@ class TestDXFile(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.foo_file = tempfile.NamedTemporaryFile(delete=False)
+        cls.foo_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
         cls.foo_file.write(cls.foo_str)
         cls.foo_file.close()
 
