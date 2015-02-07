@@ -217,11 +217,11 @@ class TestDXFile(unittest.TestCase):
     created and are destroyed after the test, no matter if it fails.
     '''
 
-    foo_str = "foo\n"
+    foo_str = b"foo\n"
 
     @classmethod
     def setUpClass(cls):
-        cls.foo_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
+        cls.foo_file = tempfile.NamedTemporaryFile(delete=False)
         cls.foo_file.write(cls.foo_str)
         cls.foo_file.close()
 
