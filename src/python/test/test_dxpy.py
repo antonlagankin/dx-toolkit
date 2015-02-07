@@ -341,7 +341,7 @@ class TestDXFile(unittest.TestCase):
         dxid = ""
         with dxpy.new_dxfile() as self.dxfile:
             dxid = self.dxfile.get_id()
-            self.dxfile.write("Line 1\nLine 2\nLine 3\n")
+            self.dxfile.write(b"Line 1\nLine 2\nLine 3\n")
 
         with dxpy.open_dxfile(dxid) as same_dxfile:
             same_dxfile.wait_on_close()
@@ -354,7 +354,7 @@ class TestDXFile(unittest.TestCase):
 
     def test_dxfile_errors(self):
         self.dxfile = dxpy.new_dxfile()
-        self.dxfile.write("Line 1\nLine 2\nLine 3\n")
+        self.dxfile.write(b"Line 1\nLine 2\nLine 3\n")
 
         with self.assertRaises(DXFileError):
             self.dxfile.read(3)
@@ -365,7 +365,7 @@ class TestDXFile(unittest.TestCase):
     def test_file_context_manager(self):
         with dxpy.new_dxfile(mode='w') as self.dxfile:
             file_id = self.dxfile.get_id()
-            self.dxfile.write("Haha")
+            self.dxfile.write(b"Haha")
         file2 = dxpy.open_dxfile(file_id)
         state = file2._get_state()
         self.assertTrue(state in ['closing', 'closed'])
@@ -374,7 +374,7 @@ class TestDXFile(unittest.TestCase):
 
     def test_file_context_manager_destructor(self):
         dxfile = dxpy.new_dxfile(mode='w')
-        dxfile.write("Haha")
+        dxfile.write(b"Haha")
         # No assertion here, but this should print an error
 
 class TestDXGTable(unittest.TestCase):

@@ -26,12 +26,13 @@ full object handler.
 
 '''
 
-from __future__ import (print_function, unicode_literals)
+from __future__ import print_function, unicode_literals, division, absolute_import
 
 import dxpy
 from . import DXDataObject
 from . import __dict__ as all_bindings
 from ..exceptions import DXError
+from ..compat import str, bytes
 
 def dxlink(object_id, project_id=None):
     '''
@@ -63,7 +64,7 @@ def is_dxlink(x):
     Returns whether *x* appears to be a DNAnexus link (is a dict with
     key ``"$dnanexus_link"``) with a referenced data object.
     '''
-    return isinstance(x, dict) and '$dnanexus_link' in x and (isinstance(x['$dnanexus_link'], basestring) or isinstance(x['$dnanexus_link'], dict) and 'id' in x['$dnanexus_link'])
+    return isinstance(x, dict) and '$dnanexus_link' in x and (isinstance(x['$dnanexus_link'], (str, bytes)) or isinstance(x['$dnanexus_link'], dict) and 'id' in x['$dnanexus_link'])
 
 def get_dxlink_ids(link):
     '''
@@ -83,7 +84,7 @@ def get_dxlink_ids(link):
 def _guess_link_target_type(link):
     if is_dxlink(link):
         # Guaranteed by is_dxlink that one of the following will work
-        if isinstance(link['$dnanexus_link'], basestring):
+        if isinstance(link['$dnanexus_link'], (str, bytes)):
             link = link['$dnanexus_link']
         else:
             link = link['$dnanexus_link']['id']
