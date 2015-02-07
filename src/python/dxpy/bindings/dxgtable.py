@@ -27,7 +27,7 @@ import concurrent.futures
 import dxpy
 from . import DXDataObject
 from ..exceptions import DXError
-from ..compat import StringIO
+from ..compat import StringIO, str, bytes
 from ..utils import warn
 
 DXGTABLE_HTTP_THREADS = 4
@@ -167,7 +167,7 @@ class DXGTable(DXDataObject):
             raise ValueError("Row has wrong number of columns (expected %d, got %d)" % (len(self._columns), len(row)))
         for index, (value, column) in enumerate(zip(row, self._columns)):
             if column['type'] == 'string':
-                if not isinstance(value, basestring):
+                if not isinstance(value, (str, bytes)):
                     raise ValueError("Expected value in column %d to be a string, got %r instead" % (index, value))
             elif column['type'] == 'boolean':
                 if value != True and value != False:

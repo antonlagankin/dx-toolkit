@@ -148,6 +148,7 @@ restored when the block exits.
         else:
             os.environ['DX_PROJECT_CONTEXT_ID'] = current_project_env_var
 
+
 class DXTestCase(unittest.TestCase):
     def setUp(self):
         proj_name = u"dxclient_test_pröject"
