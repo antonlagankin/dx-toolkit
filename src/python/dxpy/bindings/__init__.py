@@ -91,6 +91,8 @@ class DXObject(object):
         return self._repr()
 
     def __getattr__(self, attr):
+        if attr == "__getstate__" or attr == "__setstate__":
+            raise AttributeError()
         if not self._desc:
             self.describe()
         try:
