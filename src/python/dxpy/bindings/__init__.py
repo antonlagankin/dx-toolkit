@@ -91,7 +91,11 @@ class DXObject(object):
         return self._repr()
 
     def __getattr__(self, attr):
-        if attr == "__getstate__" or attr == "__setstate__":
+        if attr.startswith("_"):
+            # Do not attempt to describe remote object attributes that
+            # may be unset internal attributes of the Python
+            # handler. Those attributes will need to be accessed as
+            # handler.describe()[...] instead.
             raise AttributeError()
         if not self._desc:
             self.describe()
