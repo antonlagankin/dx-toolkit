@@ -50,6 +50,7 @@ from __future__ import print_function, unicode_literals, division, absolute_impo
 import dxpy
 from . import DXObject, DXExecutable, DXJob, verify_string_dxid
 from ..exceptions import DXError
+from ..compat import str, bytes
 
 #########
 # DXApp #
@@ -94,10 +95,10 @@ class DXApp(DXObject, DXExecutable):
             self._dxid = dxid
         elif name is not None:
             self._name = name
-            if not isinstance(name, basestring):
+            if not isinstance(name, (str, bytes)):
                 raise DXError("App name needs to be a string: %r" % (name,))
             if alias is not None:
-                if not isinstance(alias, basestring):
+                if not isinstance(alias, (str, bytes)):
                     raise DXError("App alias needs to be a string: %r" % (alias,))
                 self._alias = alias
             else:

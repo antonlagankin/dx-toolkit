@@ -35,6 +35,7 @@ import dxpy
 from . import DXObject, DXDataObject, DXJobFailureError, verify_string_dxid
 from ..exceptions import DXError
 from ..utils.local_exec_utils import queue_entry_point
+from ..compat import str, bytes
 
 #########
 # DXJob #
@@ -140,7 +141,7 @@ class DXJob(DXObject):
                         if item.get_id() is None:
                             raise DXError('A dxpy handler given in depends_on does not have an ID set')
                         final_depends_on.append(item.get_id())
-                    elif isinstance(item, basestring):
+                    elif isinstance(item, (str, bytes)):
                         final_depends_on.append(item)
                     else:
                         raise DXError('Expected elements of depends_on to only be either instances of DXJob or DXDataObject, or strings')
@@ -158,7 +159,7 @@ class DXJob(DXObject):
             if properties is not None:
                 req_input["properties"] = properties
             if instance_type is not None:
-                if isinstance(instance_type, basestring):
+                if isinstance(instance_type, (str, bytes)):
                     req_input["systemRequirements"] = {fn_name: {"instanceType": instance_type}}
                 elif isinstance(instance_type, dict):
                     req_input["systemRequirements"] = {stage: {"instanceType": stage_inst} for stage, stage_inst in instance_type.items()}
@@ -183,7 +184,7 @@ class DXJob(DXObject):
         Discards the currently stored ID and associates the handler with *dxid*
         '''
         if dxid is not None:
-            if not (isinstance(dxid, basestring) and dxid.startswith('localjob-')):
+            if not (isinstance(dxid, (str, bytes)) and dxid.startswith('localjob-')):
                 # localjob IDs (which do not follow the usual ID
                 # syntax) should be allowed; otherwise, follow the
                 # usual syntax checking

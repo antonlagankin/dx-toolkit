@@ -29,6 +29,7 @@ from ..utils.pretty_print import format_table
 from ..utils.resolver import split_unescaped
 from ..utils.completer import InstanceTypesCompleter
 from ..exceptions import (DXError, DXCLIError)
+from ..compat import str, bytes
 
 class DXParserError(DXError):
     def __init__(self, msg):
@@ -296,7 +297,7 @@ def process_instance_type_arg(args, for_workflow=False):
                 else:
                     new_inst_type_val = _parse_inst_type(inst_type_req)
             args.instance_type = new_inst_type_val
-        elif not isinstance(args.instance_type, basestring):
+        elif not isinstance(args.instance_type, (str, bytes)):
             args.instance_type = _parse_inst_type(args.instance_type[-1])
         else:
             # is a string

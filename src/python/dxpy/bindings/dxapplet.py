@@ -30,6 +30,7 @@ import dxpy
 from . import DXDataObject, DXJob
 from ..utils import merge
 from ..exceptions import DXError
+from ..compat import str, bytes
 
 class DXExecutable:
     '''Methods in :class:`!DXExecutable` are used by
@@ -42,7 +43,7 @@ class DXExecutable:
 
     @staticmethod
     def _inst_type_to_sys_reqs(instance_type):
-        if isinstance(instance_type, basestring):
+        if isinstance(instance_type, (str, bytes)):
             # All entry points should use this instance type
             return {"*": {"instanceType": instance_type}}
         elif isinstance(instance_type, dict):
@@ -76,7 +77,7 @@ class DXExecutable:
                         if item.get_id() is None:
                             raise DXError('A dxpy handler given in depends_on does not have an ID set')
                         run_input["dependsOn"].append(item.get_id())
-                    elif isinstance(item, basestring):
+                    elif isinstance(item, (str, bytes)):
                         run_input['dependsOn'].append(item)
                     else:
                         raise DXError('Expected elements of depends_on to only be either instances of DXJob or DXDataObject, or strings')

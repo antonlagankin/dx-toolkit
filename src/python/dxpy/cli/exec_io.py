@@ -32,7 +32,7 @@ from ..utils.describe import (get_find_executions_string, get_ls_l_desc, parse_t
 from ..utils.resolver import (get_first_pos_of_char, is_hashid, is_job_id, is_localjob_id, paginate_and_pick, pick,
                               resolve_existing_path, split_unescaped)
 from ..utils import OrderedDefaultdict
-from ..compat import input, str, shlex
+from ..compat import input, str, bytes, shlex
 from ..utils.env import get_env_var
 
 ####################
@@ -494,7 +494,7 @@ class ExecutableInputs(object):
                             input_value = {"$dnanexus_link": {"project": entity_result['describe']['project'],
                                                               "id": entity_result['id']}}
             if isinstance(self.inputs[input_name], list) and \
-               not isinstance(self.inputs[input_name], basestring):
+               not isinstance(self.inputs[input_name], (str, bytes)):
                 self.inputs[input_name].append(input_value)
             else:
                 self.inputs[input_name] = input_value

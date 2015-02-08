@@ -30,6 +30,7 @@ import re
 import dxpy
 from dxpy.bindings import DXDataObject, DXExecutable, DXAnalysis
 from dxpy.exceptions import DXError
+from ..compat import str, bytes
 
 ##############
 # DXWorkflow #
@@ -110,10 +111,10 @@ class DXWorkflow(DXDataObject, DXExecutable):
         if "init_from" in kwargs:
             if kwargs["init_from"] is not None:
                 if not (isinstance(kwargs["init_from"], (DXWorkflow, DXAnalysis)) or \
-                        (isinstance(kwargs["init_from"], basestring) and \
+                        (isinstance(kwargs["init_from"], (str, bytes)) and \
                          re.compile('^analysis-[0-9A-Za-z]{24}$').match(kwargs["init_from"]))):
                     raise DXError("Expected init_from to be an instance of DXWorkflow or DXAnalysis, or to be a string analysis ID.")
-                if isinstance(kwargs["init_from"], basestring):
+                if isinstance(kwargs["init_from"], (str, bytes)):
                     dx_hash["initializeFrom"] = {"id": kwargs["init_from"]}
                 else:
                     dx_hash["initializeFrom"] = {"id": kwargs["init_from"].get_id()}
@@ -158,14 +159,14 @@ class DXWorkflow(DXDataObject, DXExecutable):
         :raises: :class:`~dxpy.exceptions.DXError` if *stage* could not be parsed or resolved to a stage ID
         '''
         # first, if it is a string, see if it is an integer
-        if isinstance(stage, basestring):
+        if isinstance(stage, (str, bytes)):
             try:
                 stage = int(stage)
             except:
                 # we'll try parsing it as a string later
                 pass
 
-        if not isinstance(stage, basestring):
+        if not isinstance(stage, (str, bytes)):
             # Try to parse as stage index; ensure that if it's not a
             # string that it is an integer at this point.
             try:
@@ -211,7 +212,7 @@ class DXWorkflow(DXDataObject, DXExecutable):
 
         Adds the specified executable as a new stage in the workflow.
         '''
-        if isinstance(executable, basestring):
+        if isinstance(executable, (str, bytes)):
             exec_id = executable
         elif isinstance(executable, DXExecutable):
             exec_id = executable.get_id()
@@ -371,7 +372,7 @@ class DXWorkflow(DXDataObject, DXExecutable):
             raise DXError('dxpy.DXWorkflow.update_stage: cannot provide both "folder" and set "unset_folder"')
 
         if executable is not None:
-            if isinstance(executable, basestring):
+            if isinstance(executable, (str, bytes)):
                 exec_id = executable
             elif isinstance(executable, DXExecutable):
                 exec_id = executable.get_id()

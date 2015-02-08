@@ -30,7 +30,7 @@ import os, sys, json, re
 import dxpy
 from .describe import get_ls_l_desc
 from ..exceptions import DXError
-from ..compat import str, input
+from ..compat import str, bytes, input
 from ..utils.env import get_env_var
 from ..cli import INTERACTIVE_CLI
 
@@ -397,9 +397,9 @@ def resolve_path(path, expected=None, expected_classes=None, multi_projects=Fals
     try:
         possible_hash = json.loads(path)
         if isinstance(possible_hash, dict) and '$dnanexus_link' in possible_hash:
-            if isinstance(possible_hash['$dnanexus_link'], basestring):
+            if isinstance(possible_hash['$dnanexus_link'], (str, bytes)):
                 path = possible_hash['$dnanexus_link']
-            elif isinstance(possible_hash['$dnanexus_link'], dict) and isinstance(possible_hash['$dnanexus_link'].get('project', None), basestring) and isinstance(possible_hash['$dnanexus_link'].get('id', None), basestring):
+            elif isinstance(possible_hash['$dnanexus_link'], dict) and isinstance(possible_hash['$dnanexus_link'].get('project', None), (str, bytes)) and isinstance(possible_hash['$dnanexus_link'].get('id', None), (str, bytes)):
                 path = possible_hash['$dnanexus_link']['project'] + ':' + possible_hash['$dnanexus_link']['id']
     except:
         pass
