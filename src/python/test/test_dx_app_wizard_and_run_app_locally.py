@@ -28,6 +28,7 @@ import dxpy_testutil as testutil
 import dxpy
 from dxpy.scripts import dx_build_app
 from dxpy.exceptions import DXCLIError
+from dxpy.compat import USING_PYTHON2
 
 supported_languages = ['Python', 'C++', 'bash']
 
@@ -37,7 +38,7 @@ def run_dx_app_wizard():
     os.chdir(tempdir)
     try:
         wizard = pexpect.spawn("dx-app-wizard")
-        wizard.logfile = sys.stdout
+        wizard.logfile = sys.stdout if USING_PYTHON2 else sys.stdout.buffer
         wizard.setwinsize(20, 90)
         wizard.expect("App Name:")
         wizard.sendline("Имя")
@@ -126,7 +127,7 @@ def create_app_dir_with_dxapp_json(dxapp_json, language):
 
         wizard = pexpect.spawn("dx-app-wizard --json-file dxapp.json --language " + language)
         wizard.setwinsize(20, 90)
-        wizard.logfile = sys.stdout
+        wizard.logfile = sys.stdout if USING_PYTHON2 else sys.stdout.buffer
         wizard.expect("App Name")
         wizard.sendline()
         wizard.expect("Version")

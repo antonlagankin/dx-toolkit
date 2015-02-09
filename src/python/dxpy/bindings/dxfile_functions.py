@@ -28,6 +28,7 @@ import os, sys, math, mmap, stat
 
 import dxpy
 from . import dxfile, DXFile
+from ..compat import sys_encoding
 
 def open_dxfile(dxid, project=None, read_buffer_size=dxfile.DEFAULT_BUFFER_SIZE):
     '''
@@ -307,8 +308,8 @@ def upload_local_file(filename=None, file=None, media_type=None, keep_open=False
 
 def upload_string(to_upload, media_type=None, keep_open=False, wait_on_close=False, **kwargs):
     """
-    :param to_upload: String to upload into a file
-    :type to_upload: string
+    :param to_upload: String or bytes to upload into a file
+    :type to_upload: string or bytes
     :param media_type: Internet Media Type
     :type media_type: string
     :param keep_open: If False, closes the file after uploading
@@ -326,6 +327,8 @@ def upload_string(to_upload, media_type=None, keep_open=False, wait_on_close=Fal
     remote file handler.
 
     """
+    if not isinstance(to_upload, bytes):
+        to_upload = to_upload.encode(sys_encoding)
 
     # Use 'a' mode because we will be responsible for closing the file
     # ourselves later (if requested).

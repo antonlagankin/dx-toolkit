@@ -30,7 +30,7 @@ from dxpy.scripts import dx_build_app
 from dxpy_testutil import DXTestCase, check_output, temporary_project, select_project
 import dxpy_testutil as testutil
 from dxpy.exceptions import DXAPIError, EXPECTED_ERR_EXIT_STATUS
-from dxpy.compat import str, sys_encoding
+from dxpy.compat import str, sys_encoding, USING_PYTHON2
 
 @contextmanager
 def chdir(dirname=None):
@@ -315,7 +315,7 @@ class TestDXClient(DXTestCase):
 
     def test_dx_shell(self):
         shell = pexpect.spawn("bash")
-        shell.logfile = sys.stdout
+        shell.logfile = sys.stdout if USING_PYTHON2 else sys.stdout.buffer
         shell.sendline("dx sh")
         shell.expect(">")
         shell.sendline("Ψ 'Ψ Ψ'")
@@ -609,7 +609,7 @@ class TestDXClient(DXTestCase):
                 del os.environ[var]
         shell1 = pexpect.spawn("bash")
         shell2 = pexpect.spawn("bash")
-        shell1.logfile = shell2.logfile = sys.stdout
+        shell1.logfile = shell2.logfile = sys.stdout if USING_PYTHON2 else sys.stdout.buffer
         shell1.setwinsize(20, 90)
         shell2.setwinsize(20, 90)
 
@@ -650,7 +650,7 @@ class TestDXClient(DXTestCase):
 
             def get_dx_ssh_config():
                 dx_ssh_config = pexpect.spawn("dx ssh_config", env=overrideEnvironment(HOME=wd))
-                dx_ssh_config.logfile = sys.stdout
+                dx_ssh_config.logfile = sys.stdout if USING_PYTHON2 else sys.stdout.buffer
                 dx_ssh_config.setwinsize(20, 90)
                 return dx_ssh_config
 
@@ -722,7 +722,7 @@ class TestDXClient(DXTestCase):
             os.mkdir(os.path.join(wd, ".dnanexus_config"))
 
             dx_ssh_config = pexpect.spawn("dx ssh_config", env=overrideEnvironment(HOME=wd))
-            dx_ssh_config.logfile = sys.stdout
+            dx_ssh_config.logfile = sys.stdout if USING_PYTHON2 else sys.stdout.buffer
             dx_ssh_config.setwinsize(20, 90)
             dx_ssh_config.expect("Select an SSH key pair")
             dx_ssh_config.sendline("0")
@@ -749,7 +749,7 @@ class TestDXClient(DXTestCase):
 
             dx = pexpect.spawn("dx run {} --yes --ssh".format(sleep_applet),
                                env=overrideEnvironment(HOME=wd))
-            dx.logfile = sys.stdout
+            dx.logfile = sys.stdout if USING_PYTHON2 else sys.stdout.buffer
             dx.setwinsize(20, 90)
             dx.expect("Waiting for job")
             dx.expect("Resolving job hostname and SSH host key", timeout=1200)
@@ -772,7 +772,7 @@ class TestDXClient(DXTestCase):
 
             # Make sure the job can be connected to using 'dx ssh <job id>'
             dx2 = pexpect.spawn("dx ssh " + job_id, env=overrideEnvironment(HOME=wd))
-            dx2.logfile = sys.stdout
+            dx2.logfile = sys.stdout if USING_PYTHON2 else sys.stdout.buffer
             dx2.setwinsize(20, 90)
             dx2.expect("Waiting for job")
             dx2.expect("Resolving job hostname and SSH host key", timeout=1200)
@@ -813,7 +813,7 @@ class TestDXClient(DXTestCase):
                     raise Exception("Timeout while waiting for job to enter debug hold")
 
             dx = pexpect.spawn("dx ssh " + job_id, env=overrideEnvironment(HOME=wd))
-            dx.logfile = sys.stdout
+            dx.logfile = sys.stdout if USING_PYTHON2 else sys.stdout.buffer
             dx.setwinsize(20, 90)
             dx.expect("dnanexus@", timeout=1200)
 
@@ -827,7 +827,7 @@ class TestDXClient(DXTestCase):
 
         def get_dx_login(opts=""):
             dx_login = pexpect.spawn("dx login" + opts, env=overrideEnvironment(HOME=wd))
-            dx_login.logfile = sys.stdout
+            dx_login.logfile = sys.stdout if USING_PYTHON2 else sys.stdout.buffer
             dx_login.setwinsize(20, 90)
             return dx_login
 
@@ -4178,7 +4178,7 @@ class TestTcshEnvironment(unittest.TestCase):
 
     def test_tcsh_source_environment(self):
         tcsh = pexpect.spawn("env - HOME=$HOME PATH=/usr/local/bin:/usr/bin:/bin tcsh")
-        tcsh.logfile = sys.stdout
+        tcsh.logfile = sys.stdout if USING_PYTHON2 else sys.stdout.buffer
         tcsh.setwinsize(20, 90)
         tcsh.sendline("source /etc/csh.cshrc")
         tcsh.sendline("source /etc/csh.login")
