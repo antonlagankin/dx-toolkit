@@ -21,6 +21,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 
 import dxpy
 import dxpy_testutil as testutil
+from dxpy.compat import sys_encoding
 
 # TODO: unit tests for dxpy.utils.completer
 
@@ -110,7 +111,7 @@ class TestDXTabCompletion(unittest.TestCase):
 
         p = subprocess.Popen('dx', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
-        self.assertIn(stderr_contains, err)
+        self.assertIn(stderr_contains, err.decode(sys_encoding))
         return out.split(IFS)
 
     def assert_completion(self, line, completion):

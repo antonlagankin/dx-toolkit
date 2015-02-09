@@ -27,7 +27,7 @@ import concurrent.futures
 import dxpy
 from . import DXDataObject
 from ..exceptions import DXError
-from ..compat import StringIO, str, bytes
+from ..compat import BytesIO, str, bytes
 from ..utils import warn
 
 DXGTABLE_HTTP_THREADS = 4
@@ -39,7 +39,7 @@ DXGTABLE_HTTP_THREADS = 4
 DEFAULT_TABLE_READ_ROW_BUFFER_SIZE = 40000
 
 # Writing uses two buffers: one that contains the actual rows (list of Python lists) and the
-# stringified data to send to the server (kept in a StringIO object). The row data is stringified
+# stringified data to send to the server (kept in a BytesIO object). The row data is stringified
 # when we have accumulated a fixed number of rows. The stringified data is sent to the server once
 # its size exceeds a certain number of bytes.
 #
@@ -468,13 +468,13 @@ class DXGTable(DXDataObject):
 
     def _flush_row_buf_to_string_buf(self):
         if self._string_row_buf == None:
-            self._string_row_buf = StringIO()
-            self._string_row_buf.write('{"data": [')
+            self._string_row_buf = BytesIO()
+            self._string_row_buf.write(b'{"data": [')
 
         if len(self._row_buf) > 0:
-            self._string_row_buf.write(json.dumps(self._row_buf)[1:])
+            self._string_row_buf.write(json.dumps(self._row_buf)[1:].encode("utf-8"))
             self._string_row_buf.seek(-1, os.SEEK_END) # chop off trailing "]"
-            self._string_row_buf.write(", ")
+            self._string_row_buf.write(b", ")
             self._row_buf = []
 
     def _finalize_string_row_buf(self, part_id=None):
@@ -484,13 +484,13 @@ class DXGTable(DXDataObject):
         # Temporary debug
         self._string_row_buf.seek(-2, os.SEEK_END) # chop off trailing ", "
         tail = self._string_row_buf.read()
-        if tail != ', ':
+        if tail != b', ':
             self._string_row_buf.seek(-100, os.SEEK_END)
             tail = self._string_row_buf.read()
             raise Exception("Unexpected buffer state: _finalize_string_row_buf called twice. Buffer tail: "+tail)
         
         self._string_row_buf.seek(-2, os.SEEK_END) # chop off trailing ", "
-        self._string_row_buf.write('], "part": %s}' % str(part_id))
+        self._string_row_buf.write(('], "part": %s}' % str(part_id)).encode("utf-8"))
 
     def flush(self, multithread=True, **kwargs):
         '''
@@ -498,7 +498,7 @@ class DXGTable(DXDataObject):
         '''
         if len(self._row_buf) > 0:
             self._flush_row_buf_to_string_buf()
-        if self._string_row_buf != None and self._string_row_buf.tell() > len('{"data": ['):
+        if self._string_row_buf != None and self._string_row_buf.tell() > len(b'{"data": ['):
             self._finalize_string_row_buf()
             request_data = self._string_row_buf.getvalue()
             self._string_row_buf = None
