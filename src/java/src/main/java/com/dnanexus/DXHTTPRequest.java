@@ -18,6 +18,10 @@ package com.dnanexus;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import com.codahale.metrics.Timer;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -38,6 +42,10 @@ import com.fasterxml.jackson.databind.JsonNode;
  * Class for making a raw DNAnexus API call via HTTP.
  */
 public class DXHTTPRequest {
+
+    private static Pattern RECORD_PATTERN = Pattern.compile("/record-.*");
+    private static Pattern FILE_PATTERN = Pattern.compile("/file-.*");
+
     /**
      * Holds either the raw text of a response or a parsed JSON version of it.
      */
@@ -234,10 +242,12 @@ public class DXHTTPRequest {
         int timeoutSeconds = 1;
         int attempts = 0;
 
-        while (true) {
-            // This guarantees that we get at least one iteration around this loop before running
-            // out of retries, so we can check at the bottom of the loop instead of the top.
-            assert NUM_RETRIES > 0;
+        Timer.Context timerContext = DXAPI.METRICS_REGISTRY.timer(generateTimerKey(resource)).time();
+        try {
+            while (true) {
+                // This guarantees that we get at least one iteration around this loop before running
+                // out of retries, so we can check at the bottom of the loop instead of the top.
+                assert NUM_RETRIES > 0;
 
             // By default, our conservative strategy is to retry if the route permits it. Later we
             // may update this to unconditionally retry if we can definitely determine that the
@@ -369,6 +379,22 @@ public class DXHTTPRequest {
 
             sleep(timeoutSeconds);
             timeoutSeconds *= 2;
+           }
         }
+        finally {
+            timerContext.stop();
+        }
+    }
+
+    private String generateTimerKey(String resource) {
+        Matcher recordMatcher = RECORD_PATTERN.matcher(resource);
+        if (recordMatcher.matches()) {
+            return "dx." + resource.replaceFirst("/record.*/", "record.").replaceAll("/", ".");
+        }
+        Matcher fileMatcher = FILE_PATTERN.matcher(resource);
+        if (fileMatcher.matches()) {
+            return "dx." + resource.replaceFirst("/file.*/", "file.").replaceAll("/", ".");
+        }
+        return "dx." + resource.replaceFirst("/", "").replaceAll("/", ".");
     }
 }
