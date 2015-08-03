@@ -18,7 +18,10 @@ package com.dnanexus;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import com.codahale.metrics.Timer;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -38,6 +41,10 @@ import com.fasterxml.jackson.databind.JsonNode;
  * Class for making a raw DNAnexus API call via HTTP.
  */
 public class DXHTTPRequest {
+
+    private static Pattern RECORD_PATTERN = Pattern.compile("/record-.*");
+    private static Pattern FILE_PATTERN = Pattern.compile("/file-.*");
+
     /**
      * Holds either the raw text of a response or a parsed JSON version of it.
      */
@@ -234,141 +241,160 @@ public class DXHTTPRequest {
         int timeoutSeconds = 1;
         int attempts = 0;
 
-        while (true) {
-            // This guarantees that we get at least one iteration around this loop before running
-            // out of retries, so we can check at the bottom of the loop instead of the top.
-            assert NUM_RETRIES > 0;
+        Timer.Context timerContext = DXAPI.METRICS_REGISTRY.timer(generateTimerKey(resource)).time();
 
-            // By default, our conservative strategy is to retry if the route permits it. Later we
-            // may update this to unconditionally retry if we can definitely determine that the
-            // server never saw the request.
-            boolean retryRequest = (retryStrategy == RetryStrategy.SAFE_TO_RETRY);
+        try {
+            while (true) {
+                // This guarantees that we get at least one iteration around this loop before running
+                // out of retries, so we can check at the bottom of the loop instead of the top.
+                assert NUM_RETRIES > 0;
 
-            try {
-                // In this block, any IOException will cause the request to be retried (up to a
-                // total of NUM_RETRIES retries). RuntimeException (including DXAPIException)
-                // instances are not caught and will immediately return control to the caller.
+                // By default, our conservative strategy is to retry if the route permits it. Later we
+                // may update this to unconditionally retry if we can definitely determine that the
+                // server never saw the request.
+                boolean retryRequest = (retryStrategy == RetryStrategy.SAFE_TO_RETRY);
 
-                // TODO: distinguish between errors during connection init and socket errors while
-                // sending or receiving data. The former can always be retried, but the latter can
-                // only be retried if the request is idempotent.
-                HttpResponse response = httpclient.execute(request);
+                try {
+                    // In this block, any IOException will cause the request to be retried (up to a
+                    // total of NUM_RETRIES retries). RuntimeException (including DXAPIException)
+                    // instances are not caught and will immediately return control to the caller.
 
-                int statusCode = response.getStatusLine().getStatusCode();
-                HttpEntity entity = response.getEntity();
+                    // TODO: distinguish between errors during connection init and socket errors while
+                    // sending or receiving data. The former can always be retried, but the latter can
+                    // only be retried if the request is idempotent.
+                    HttpResponse response = httpclient.execute(request);
 
-                if (statusCode == HttpStatus.SC_OK) {
-                    // 200 OK
-                    byte[] value = EntityUtils.toByteArray(entity);
-                    int realLength = value.length;
-                    if (entity.getContentLength() >= 0 && realLength != entity.getContentLength()) {
-                        // Content length mismatch. Retry is possible (if the route permits it).
-                        throw new IOException("Received response of " + realLength
-                                + " bytes but Content-Length was " + entity.getContentLength());
-                    } else if (parseResponse) {
-                        JsonNode responseJson = null;
-                        try {
-                            responseJson = DXJSON.parseJson(new String(value, "UTF-8"));
-                        } catch (JsonProcessingException e) {
-                            if (entity.getContentLength() < 0) {
-                                // content-length was not provided, and the JSON could not be
-                                // parsed. Retry (if the route permits it) since this is probably
-                                // just a streaming request that encountered a transient error.
-                                throw new IOException(
-                                        "Content-length was not provided and the response JSON could not be parsed.");
-                            }
-                            // This is probably a real problem (the request
-                            // is complete but doesn't parse), so avoid
-                            // masking it as an IOException (which is
-                            // rethrown as DXHTTPException below). If it
-                            // comes up frequently we can revisit how these
-                            // should be handled.
-                            throw new RuntimeException(
-                                    "Request is of the correct length but is unparseable", e);
-                        } catch (IOException e) {
-                            // TODO: characterize what kinds of errors
-                            // DXJSON.parseJson can emit, determine how we can
-                            // get here and what to do about it.
-                            throw new RuntimeException(e);
-                        }
-                        return new ParsedResponse(null, responseJson);
-                    } else {
-                        return new ParsedResponse(new String(value, Charset.forName("UTF-8")), null);
-                    }
-                } else if (statusCode < 500) {
-                    // 4xx errors should be considered not recoverable.
-                    String responseStr = EntityUtils.toString(entity);
-                    String errorType = null;
-                    String errorMessage = responseStr;
-                    try {
-                        JsonNode responseJson = DXJSON.parseJson(responseStr);
-                        JsonNode errorField = responseJson.get("error");
-                        if (errorField != null) {
-                            JsonNode typeField = errorField.get("type");
-                            if (typeField != null) {
-                                errorType = typeField.asText();
-                            }
-                            JsonNode messageField = errorField.get("message");
-                            if (messageField != null) {
-                                errorMessage = messageField.asText();
-                            }
-                        }
-                    } catch (IOException e) {
-                        // Just fall back to reproducing the entire response
-                        // body.
-                    }
+                    int statusCode = response.getStatusLine().getStatusCode();
+                    HttpEntity entity = response.getEntity();
 
-                    throw DXAPIException.getInstance(errorType, errorMessage, statusCode);
-                } else {
-                    // 500 InternalError should get retried unconditionally
-                    retryRequest = true;
-                    if (statusCode == 503) {
-                        int retryAfterSeconds = 60;
-                        Header retryAfterHeader = response.getFirstHeader("retry-after");
-                        // Consume the response to avoid leaking resources
-                        EntityUtils.consume(entity);
-                        if (retryAfterHeader != null) {
+                    if (statusCode == HttpStatus.SC_OK) {
+                        // 200 OK
+                        byte[] value = EntityUtils.toByteArray(entity);
+                        int realLength = value.length;
+                        if (entity.getContentLength() >= 0 && realLength != entity.getContentLength()) {
+                            // Content length mismatch. Retry is possible (if the route permits it).
+                            throw new IOException("Received response of " + realLength
+                                    + " bytes but Content-Length was " + entity.getContentLength());
+                        } else if (parseResponse) {
+                            JsonNode responseJson = null;
                             try {
-                                retryAfterSeconds = Integer.parseInt(retryAfterHeader.getValue());
-                            } catch (NumberFormatException e) {
-                                // Just fall back to the default
+                                responseJson = DXJSON.parseJson(new String(value, "UTF-8"));
+                            } catch (JsonProcessingException e) {
+                                if (entity.getContentLength() < 0) {
+                                    // content-length was not provided, and the JSON could not be
+                                    // parsed. Retry (if the route permits it) since this is probably
+                                    // just a streaming request that encountered a transient error.
+                                    throw new IOException(
+                                            "Content-length was not provided and the response JSON could not be parsed.");
+                                }
+                                // This is probably a real problem (the request
+                                // is complete but doesn't parse), so avoid
+                                // masking it as an IOException (which is
+                                // rethrown as DXHTTPException below). If it
+                                // comes up frequently we can revisit how these
+                                // should be handled.
+                                throw new RuntimeException(
+                                        "Request is of the correct length but is unparseable", e);
+                            } catch (IOException e) {
+                                // TODO: characterize what kinds of errors
+                                // DXJSON.parseJson can emit, determine how we can
+                                // get here and what to do about it.
+                                throw new RuntimeException(e);
                             }
+                            return new ParsedResponse(null, responseJson);
+                        } else {
+                            return new ParsedResponse(new String(value, Charset.forName("UTF-8")), null);
                         }
-                        throw new ServiceUnavailableException(retryAfterSeconds);
+                    } else if (statusCode < 500) {
+                        // 4xx errors should be considered not recoverable.
+                        String responseStr = EntityUtils.toString(entity);
+                        String errorType = null;
+                        String errorMessage = responseStr;
+                        try {
+                            JsonNode responseJson = DXJSON.parseJson(responseStr);
+                            JsonNode errorField = responseJson.get("error");
+                            if (errorField != null) {
+                                JsonNode typeField = errorField.get("type");
+                                if (typeField != null) {
+                                    errorType = typeField.asText();
+                                }
+                                JsonNode messageField = errorField.get("message");
+                                if (messageField != null) {
+                                    errorMessage = messageField.asText();
+                                }
+                            }
+                        } catch (IOException e) {
+                            // Just fall back to reproducing the entire response
+                            // body.
+                        }
+
+                        throw DXAPIException.getInstance(errorType, errorMessage, statusCode);
+                    } else {
+                        // 500 InternalError should get retried unconditionally
+                        retryRequest = true;
+                        if (statusCode == 503) {
+                            int retryAfterSeconds = 60;
+                            Header retryAfterHeader = response.getFirstHeader("retry-after");
+                            // Consume the response to avoid leaking resources
+                            EntityUtils.consume(entity);
+                            if (retryAfterHeader != null) {
+                                try {
+                                    retryAfterSeconds = Integer.parseInt(retryAfterHeader.getValue());
+                                } catch (NumberFormatException e) {
+                                    // Just fall back to the default
+                                }
+                            }
+                            throw new ServiceUnavailableException(retryAfterSeconds);
+                        }
+                        throw new IOException(EntityUtils.toString(entity));
                     }
-                    throw new IOException(EntityUtils.toString(entity));
+                } catch (ServiceUnavailableException e) {
+                    // Retries due to 503 Service Unavailable and Retry-After do NOT count against the
+                    // allowed number of retries.
+                    int secondsToWait = e.secondsToWaitForRetry;
+                    System.err.println("POST " + resource + ": 503 Service Unavailable, waiting for "
+                            + Integer.toString(secondsToWait) + " seconds");
+                    sleep(secondsToWait);
+                    continue;
+                } catch (IOException e) {
+                    // Note, this catches both exceptions directly thrown from httpclient.execute (e.g.
+                    // no connectivity to server) and exceptions thrown by our code above after parsing
+                    // the response.
+                    System.err.println(errorMessage("POST", resource, e.toString(), timeoutSeconds,
+                            attempts + 1, NUM_RETRIES));
+                    if (attempts == NUM_RETRIES || !retryRequest) {
+                        throw new DXHTTPException(e);
+                    }
                 }
-            } catch (ServiceUnavailableException e) {
-                // Retries due to 503 Service Unavailable and Retry-After do NOT count against the
-                // allowed number of retries.
-                int secondsToWait = e.secondsToWaitForRetry;
-                System.err.println("POST " + resource + ": 503 Service Unavailable, waiting for "
-                        + Integer.toString(secondsToWait) + " seconds");
-                sleep(secondsToWait);
-                continue;
-            } catch (IOException e) {
-                // Note, this catches both exceptions directly thrown from httpclient.execute (e.g.
-                // no connectivity to server) and exceptions thrown by our code above after parsing
-                // the response.
-                System.err.println(errorMessage("POST", resource, e.toString(), timeoutSeconds,
-                        attempts + 1, NUM_RETRIES));
-                if (attempts == NUM_RETRIES || !retryRequest) {
-                    throw new DXHTTPException(e);
-                }
+
+                assert attempts < NUM_RETRIES;
+                assert retryRequest;
+
+                attempts++;
+
+                // The number of failed attempts is now no more than NUM_RETRIES, and the total number
+                // of attempts allowed is NUM_RETRIES + 1 (the first attempt, plus up to NUM_RETRIES
+                // retries). So there is at least one more retry left; sleep before we retry.
+                assert attempts <= NUM_RETRIES;
+
+                sleep(timeoutSeconds);
+                timeoutSeconds *= 2;
             }
-
-            assert attempts < NUM_RETRIES;
-            assert retryRequest;
-
-            attempts++;
-
-            // The number of failed attempts is now no more than NUM_RETRIES, and the total number
-            // of attempts allowed is NUM_RETRIES + 1 (the first attempt, plus up to NUM_RETRIES
-            // retries). So there is at least one more retry left; sleep before we retry.
-            assert attempts <= NUM_RETRIES;
-
-            sleep(timeoutSeconds);
-            timeoutSeconds *= 2;
         }
+        finally {
+            timerContext.stop();
+        }
+    }
+
+    private String generateTimerKey(String resource) {
+        Matcher recordMatcher = RECORD_PATTERN.matcher(resource);
+        if (recordMatcher.matches()) {
+            return resource.replaceFirst("/record.*/", "record.").replaceAll("/", ".");
+        }
+        Matcher fileMatcher = FILE_PATTERN.matcher(resource);
+        if (fileMatcher.matches()) {
+            return resource.replaceFirst("/file.*/", "file.").replaceAll("/", ".");
+        }
+        return resource.replaceFirst("/", "").replaceAll("/", ".");
     }
 }

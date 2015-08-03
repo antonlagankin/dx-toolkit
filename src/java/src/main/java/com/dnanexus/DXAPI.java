@@ -6,6 +6,8 @@
 
 package com.dnanexus;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.health.HealthCheckRegistry;
 import com.dnanexus.DXHTTPRequest.RetryStrategy;
 import com.dnanexus.exceptions.DXAPIException;
 import com.dnanexus.exceptions.DXHTTPException;
@@ -16,6 +18,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * Utility class containing low-level wrappers for invoking DNAnexus API methods.
  */
 public final class DXAPI {
+    public static final MetricRegistry METRICS_REGISTRY = new MetricRegistry();
+    public static final HealthCheckRegistry HEALTHCHECK_REGISTRY = new HealthCheckRegistry();
 
     // Utility class should not be instantiated
     private DXAPI() {
